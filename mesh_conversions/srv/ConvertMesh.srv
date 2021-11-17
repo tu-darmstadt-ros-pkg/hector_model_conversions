@@ -1,0 +1,15 @@
+# request fields
+string input_file_name
+string output_file_name
+
+---
+
+# response constants
+int8 SUCCESS=0
+int8 LOAD_FILE_ERROR=1
+int8 CONVERSION_ERROR=2
+int8 SAVE_FILE_ERROR=3
+
+#response fields
+int8 result
+string error_msg
