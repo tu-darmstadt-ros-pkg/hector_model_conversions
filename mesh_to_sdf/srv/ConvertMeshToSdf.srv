@@ -1,0 +1,20 @@
+# request fields
+string input_file
+string output_file
+float32 voxel_size
+geometry_msgs/Transform transform
+float32 scale_factor
+bool fill_inside
+bool floodfill_unoccupied
+float32 truncation_distance
+---
+
+# response constants
+int8 SUCCESS=0
+int8 LOAD_FILE_ERROR=1
+int8 CONVERSION_ERROR=2
+int8 SAVE_FILE_ERROR=3
+
+#response fields
+int8 result
+string error_msg
