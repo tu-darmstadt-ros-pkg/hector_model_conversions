@@ -1,6 +1,6 @@
 
 
-#include "../include/mesh_to_sdf/mesh_to_sdf.h"
+#include "mesh_to_sdf/mesh_to_sdf.h"
 
 namespace mesh_to_sdf
 {
