@@ -1,0 +1,22 @@
+# request fields
+string input_file
+string output_file
+int32 num_sample_points
+float32 voxel_filter_leaf_size
+geometry_msgs/Vector3 translation
+geometry_msgs/Vector3 rotation_euler_deg
+float32 scale_factor
+bool write_normals
+bool write_colors
+
+---
+
+# response constants
+int8 SUCCESS=0
+int8 LOAD_FILE_ERROR=1
+int8 CONVERSION_ERROR=2
+int8 SAVE_FILE_ERROR=3
+
+#response fields
+int8 result
+string error_msg

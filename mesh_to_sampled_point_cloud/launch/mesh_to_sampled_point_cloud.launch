@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+
+<launch>
+  <node name="mesh_to_sampled_point_cloud" pkg="mesh_to_sampled_point_cloud" type="mesh_to_sampled_point_cloud_node" respawn="false" output="screen">
+  </node>
+</launch>
