@@ -5,85 +5,79 @@
 namespace mesh_to_sdf
 {
 
-MeshToSdf::MeshToSdf(ros::NodeHandle& nh, ros::NodeHandle& pnh) : nh_(nh), pnh_(pnh)
-{
-  convert_ply_to_tsdf_service_server_ = pnh_.advertiseService("convert_ply_to_tsdf",
-                                                              &MeshToSdf::convertPlyToTsdfCallback, this);
-  convert_ply_to_esdf_service_server_ = pnh_.advertiseService("convert_ply_to_esdf",
-                                                              &MeshToSdf::convertPlyToEsdfCallback, this);
-}
-
-
-bool MeshToSdf::convertPlyToTsdfCallback(mesh_to_sdf::ConvertMeshToSdf::Request& request,
-                                         mesh_to_sdf::ConvertMeshToSdf::Response& response)
+MeshToSdf::MeshToSdf(const std::string& input_file, geometry_msgs::Transform transform, float scale_factor,
+                     bool fill_inside,
+                     bool floodfill_unoccupied, float voxel_size, float truncation_distance)
 {
   pcl::PolygonMesh mesh;
   pcl::PointCloud<pcl::PointXYZ> point_cloud;
 
   // load file
-  if (!loadPlyFile(request.input_file, mesh, point_cloud))
+  if (!loadPlyFile(input_file, mesh, point_cloud))
   {
-    response.result = mesh_to_sdf::ConvertMeshToSdf::Response::LOAD_FILE_ERROR;
-    response.error_msg = "Error while loading ply file. Please see PCL error for more information.";
+    throw std::invalid_argument("Error while loading ply file. Please see PCL error for more information.");
   }
 
   // compute TSDF
-  std::shared_ptr<voxblox::TsdfMap> tsdf_map = computeTsdf(convertTransform(request.transform), request.scale_factor,
-                                                           request.fill_inside, request.floodfill_unoccupied,
-                                                           request.voxel_size, mesh, point_cloud);
+  computeTsdf(convertTransform(transform), scale_factor, fill_inside, floodfill_unoccupied, voxel_size,
+              mesh, point_cloud);
 
   // enforce truncation of tsdf_map (if truncation distance is 0 no truncation will be done)
-  truncateTSDF(tsdf_map, request.truncation_distance);
-
-  // save TSDF
-  if (!saveTsdf(request.output_file, tsdf_map))
-  {
-    response.result = mesh_to_sdf::ConvertMeshToSdf::Response::SAVE_FILE_ERROR;
-    response.error_msg = "Error while saving tsdf file. Please see voxblox error for more information.";
-  }
-
-  // always return true so that caller receives response
-  return true;
+  truncateTSDF(truncation_distance);
 }
 
 
-bool MeshToSdf::convertPlyToEsdfCallback(mesh_to_sdf::ConvertMeshToSdf::Request& request,
-                                         mesh_to_sdf::ConvertMeshToSdf::Response& response)
+std::shared_ptr<voxblox::TsdfMap> MeshToSdf::getTsdfMap()
 {
-  pcl::PolygonMesh mesh;
-  pcl::PointCloud<pcl::PointXYZ> point_cloud;
-
-  // load file
-  if (!loadPlyFile(request.input_file, mesh, point_cloud))
-  {
-    response.result = mesh_to_sdf::ConvertMeshToSdf::Response::LOAD_FILE_ERROR;
-    response.error_msg = "Error while loading ply file. Please see PCL error for more information.";
-  }
-
-  // compute TSDF
-  std::shared_ptr<voxblox::TsdfMap> tsdf_map = computeTsdf(convertTransform(request.transform), request.scale_factor,
-                                                           request.fill_inside, request.floodfill_unoccupied,
-                                                           request.voxel_size, mesh, point_cloud);
-
-  // enforce truncation of tsdf_map (if truncation distance is 0 no truncation will be done)
-  truncateTSDF(tsdf_map, request.truncation_distance);
-
-  // compute ESDF from TSDF
-  std::shared_ptr<voxblox::EsdfMap> esdf_map = computeEsdf(tsdf_map);
-
-  // save ESDF
-  if (!saveEsdf(request.output_file, tsdf_map, esdf_map))
-  {
-    response.result = mesh_to_sdf::ConvertMeshToSdf::Response::SAVE_FILE_ERROR;
-    response.error_msg = "Error while saving esdf file. Please see voxblox error for more information.";
-  }
-
-  // always return true so that caller receives response
-  return true;
+  return tsdf_map_;
 }
 
 
-bool MeshToSdf::loadPlyFile(std::string input_file_name, pcl::PolygonMesh& mesh,
+std::shared_ptr<voxblox::EsdfMap> MeshToSdf::getEsdfMap()
+{
+  if (!esdf_map_)
+  {
+    // compute ESDF from TSDF
+    computeEsdf();
+  }
+
+  return esdf_map_;
+}
+
+
+void MeshToSdf::saveTsdf(const std::string& output_file_name)
+{
+  if (!tsdf_map_->getTsdfLayer().saveToFile(output_file_name, true))
+  {
+    throw std::invalid_argument("Error while saving tsdf file. Please see voxblox error for more information.");
+  }
+}
+
+
+void MeshToSdf::saveEsdf(const std::string& output_file_name)
+{
+  // First save the tsdf layer to the file.
+  if (!tsdf_map_->getTsdfLayer().saveToFile(output_file_name, true))
+  {
+    throw std::invalid_argument(
+      "Error while saving the tsdf part of the esdf file. Please see voxblox error for more information.");
+  }
+
+  // Afterwards append the esdf layer.
+  if (!esdf_map_)
+  {
+    // compute ESDF from TSDF
+    computeEsdf();
+  }
+  if (!esdf_map_->getEsdfLayer().saveToFile(output_file_name, false))
+  {
+    throw std::invalid_argument(
+      "Error while saving the esdf part of the esdf file. Please see voxblox error for more information.");
+  }
+}
+
+
+bool MeshToSdf::loadPlyFile(const std::string& input_file_name, pcl::PolygonMesh& mesh,
                             pcl::PointCloud<pcl::PointXYZ>& point_cloud)
 {
   int load_res = pcl::io::loadPLYFile(input_file_name, mesh);
@@ -122,10 +116,9 @@ voxblox::Transformation MeshToSdf::convertTransform(geometry_msgs::Transform tra
 }
 
 
-std::shared_ptr<voxblox::TsdfMap> MeshToSdf::computeTsdf(voxblox::Transformation transform, float scale_factor,
-                                                         bool fill_inside, bool floodfill_unoccupied, float voxel_size,
-                                                         pcl::PolygonMesh& mesh,
-                                                         pcl::PointCloud<pcl::PointXYZ>& vertex_coordinates)
+void MeshToSdf::computeTsdf(voxblox::Transformation transform, float scale_factor,
+                            bool fill_inside, bool floodfill_unoccupied, float voxel_size,
+                            pcl::PolygonMesh& mesh, pcl::PointCloud<pcl::PointXYZ>& vertex_coordinates)
 {
   // Initialize the SDF creator
   voxblox::TsdfMap::Config map_config;
@@ -176,11 +169,11 @@ std::shared_ptr<voxblox::TsdfMap> MeshToSdf::computeTsdf(voxblox::Transformation
     sdf_creator.floodfillUnoccupied(4 * voxel_size);
   }
 
-  return std::make_shared<voxblox::TsdfMap>(sdf_creator.getTsdfMap());
+  tsdf_map_ = std::make_shared<voxblox::TsdfMap>(sdf_creator.getTsdfMap());
 }
 
 
-void MeshToSdf::truncateTSDF(std::shared_ptr<voxblox::TsdfMap> tsdf_map, float truncation_distance)
+void MeshToSdf::truncateTSDF(float truncation_distance)
 {
   // do nothing if truncation distance is zero
   if (truncation_distance == 0)
@@ -190,12 +183,12 @@ void MeshToSdf::truncateTSDF(std::shared_ptr<voxblox::TsdfMap> tsdf_map, float t
 
   // get all allocated blocks
   voxblox::BlockIndexList block_idx_list;
-  tsdf_map->getTsdfLayer().getAllAllocatedBlocks(&block_idx_list);
+  tsdf_map_->getTsdfLayer().getAllAllocatedBlocks(&block_idx_list);
 
   // iter blocks
   for (Eigen::Matrix<voxblox::IndexElement, 3, 1>& block_idx : block_idx_list)
   {
-    voxblox::Layer<voxblox::TsdfVoxel>& layer = *(tsdf_map->getTsdfLayerPtr());
+    voxblox::Layer<voxblox::TsdfVoxel>& layer = *(tsdf_map_->getTsdfLayerPtr());
     voxblox::Block<voxblox::TsdfVoxel>& block = layer.getBlockByIndex(block_idx);
 
     // iter all voxels inside the block
@@ -213,12 +206,12 @@ void MeshToSdf::truncateTSDF(std::shared_ptr<voxblox::TsdfMap> tsdf_map, float t
 }
 
 
-std::shared_ptr<voxblox::EsdfMap> MeshToSdf::computeEsdf(std::shared_ptr<voxblox::TsdfMap> tsdf_map)
+void MeshToSdf::computeEsdf()
 {
   // setup esdf config from tsdf_map
   voxblox::EsdfMap::Config esdf_config;
-  esdf_config.esdf_voxel_size = tsdf_map->getTsdfLayerPtr()->voxel_size();
-  esdf_config.esdf_voxels_per_side = tsdf_map->getTsdfLayerPtr()->voxels_per_side();
+  esdf_config.esdf_voxel_size = tsdf_map_->getTsdfLayerPtr()->voxel_size();
+  esdf_config.esdf_voxels_per_side = tsdf_map_->getTsdfLayerPtr()->voxels_per_side();
 
   // setup esdf_integrator config
   voxblox::EsdfIntegrator::Config esdf_integrator_config;
@@ -227,31 +220,12 @@ std::shared_ptr<voxblox::EsdfMap> MeshToSdf::computeEsdf(std::shared_ptr<voxblox
   esdf_integrator_config.default_distance_m = esdf_integrator_config.max_distance_m;
 
   // create ESDF
-  std::shared_ptr<voxblox::EsdfMap> esdf_map = std::make_shared<voxblox::EsdfMap>(esdf_config);
+  esdf_map_ = std::make_shared<voxblox::EsdfMap>(esdf_config);
+
   std::shared_ptr<voxblox::EsdfIntegrator> esdf_integrator =
-    std::make_shared<voxblox::EsdfIntegrator>(esdf_integrator_config, tsdf_map->getTsdfLayerPtr(),
-                                              esdf_map->getEsdfLayerPtr());
+    std::make_shared<voxblox::EsdfIntegrator>(esdf_integrator_config, tsdf_map_->getTsdfLayerPtr(),
+                                              esdf_map_->getEsdfLayerPtr());
 
   esdf_integrator->updateFromTsdfLayerBatch();
-
-  return esdf_map;
-}
-
-
-bool MeshToSdf::saveTsdf(const std::string& output_file_name, std::shared_ptr<voxblox::TsdfMap> tsdf_map)
-{
-  return tsdf_map->getTsdfLayer().saveToFile(output_file_name, true);
-}
-
-
-bool MeshToSdf::saveEsdf(const std::string& output_file_name, std::shared_ptr<voxblox::TsdfMap> tsdf_map,
-                         std::shared_ptr<voxblox::EsdfMap> esdf_map)
-{
-  // First save the tsdf layer to the file.
-  bool save_tsdf_res = saveTsdf(output_file_name, tsdf_map);
-
-  // Afterwards append the esdf layer.
-  return save_tsdf_res &&
-         esdf_map->getEsdfLayer().saveToFile(output_file_name, false);
 }
 } // end namespace mesh_to_sdf
