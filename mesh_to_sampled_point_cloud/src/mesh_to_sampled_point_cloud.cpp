@@ -4,52 +4,45 @@
 namespace mesh_to_sampled_point_cloud
 {
 
-MeshToSampledPointCloud::MeshToSampledPointCloud(ros::NodeHandle& nh, ros::NodeHandle& pnh) : nh_(nh), pnh_(pnh)
+MeshToSampledPointCloud::MeshToSampledPointCloud(const std::string& input_file, int num_sample_points,
+                                                 float voxel_filter_leaf_size,
+                                                 geometry_msgs::Vector3 translation,
+                                                 geometry_msgs::Vector3 rotation_euler_deg,
+                                                 float scale_factor, bool write_normals, bool write_colors)
+  : mesh_sampling_extract_(num_sample_points, voxel_filter_leaf_size,
+                           convertTransform(translation, rotation_euler_deg, scale_factor),
+                           write_normals, write_colors)
 {
-  convert_mesh_to_sampled_point_cloud_service_server_ =
-    pnh_.advertiseService("convert_mesh_to_sampled_point_cloud",
-                          &MeshToSampledPointCloud::convertMeshToSampledPointCloudCallback, this);
-}
-
-bool MeshToSampledPointCloud::convertMeshToSampledPointCloudCallback(
-  mesh_to_sampled_point_cloud::ConvertMeshToSampledPointCloud::Request& request,
-  mesh_to_sampled_point_cloud::ConvertMeshToSampledPointCloud::Response& response)
-{
-
-  PCLMeshSamplingExtract mesh_sampling_extract(request.num_sample_points, request.voxel_filter_leaf_size,
-                                               convertTransform(request.translation, request.rotation_euler_deg,
-                                                                request.scale_factor),
-                                               request.write_normals, request.write_colors);
 
   // import file
-  std::string import_result = mesh_sampling_extract.importFile(request.input_file);
+  std::string import_result = mesh_sampling_extract_.importFile(input_file);
   if (!import_result.empty())
   {
-    response.result = mesh_to_sampled_point_cloud::ConvertMeshToSampledPointCloud::Response::LOAD_FILE_ERROR;
-    response.error_msg = import_result;
-    return true;
+    throw std::invalid_argument("LOAD_FILE_ERROR: " + import_result);
   }
 
   // sampling and conversion
-  if (!mesh_sampling_extract.executeSampling())
+  if (!mesh_sampling_extract_.executeSampling())
   {
-    response.result = mesh_to_sampled_point_cloud::ConvertMeshToSampledPointCloud::Response::CONVERSION_ERROR;
-    response.error_msg = "Error while converting and sampling pointcloud.";
-    return true;
+    throw std::runtime_error("Error while converting and sampling pointcloud.");
   }
+}
 
+std::shared_ptr<pcl::PCLPointCloud2> MeshToSampledPointCloud::getPointCloud()
+{
+  return mesh_sampling_extract_.getSampledPointCloud();
+}
+
+void MeshToSampledPointCloud::savePointCloudToPCDFile(const std::string& output_file)
+{
   // save file
-  std::string save_result = mesh_sampling_extract.savePCDFile(request.output_file);
+  std::string save_result = mesh_sampling_extract_.savePCDFile(output_file);
   if (!save_result.empty())
   {
-    response.result = mesh_to_sampled_point_cloud::ConvertMeshToSampledPointCloud::Response::SAVE_FILE_ERROR;
-    response.error_msg = save_result;
-    return true;
+    throw std::invalid_argument("SAVE_FILE_ERROR: " + save_result);
   }
-
-  // always return true so that caller receives response
-  return true;
 }
+
 
 vtkSmartPointer<vtkTransform>
 MeshToSampledPointCloud::convertTransform(geometry_msgs::Vector3 translation, geometry_msgs::Vector3 rotation_euler_deg,

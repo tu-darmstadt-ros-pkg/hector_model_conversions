@@ -3,7 +3,6 @@
 #ifndef MESH_TO_SAMPLED_POINTCLOUD_MESH_TO_SAMPLED_POINT_CLOUD_H
 #define MESH_TO_SAMPLED_POINTCLOUD_MESH_TO_SAMPLED_POINT_CLOUD_H
 
-#include "mesh_to_sampled_point_cloud/ConvertMeshToSampledPointCloud.h"
 #include "mesh_to_sampled_point_cloud/pcl_mesh_sampling_extract.h"
 
 #include <ros/ros.h>
@@ -16,15 +15,36 @@ class MeshToSampledPointCloud
 {
 public:
 
-  MeshToSampledPointCloud(ros::NodeHandle& nh, ros::NodeHandle& pnh);
+  /**
+   * Import input_file and convert it to a point cloud using sampling.
+   * @param input_file
+   * @param num_sample_points
+   * @param voxel_filter_leaf_size
+   * @param translation
+   * @param rotation_euler_deg
+   * @param scale_factor
+   * @param write_normals
+   * @param write_colors
+   */
+  MeshToSampledPointCloud(const std::string& input_file, int num_sample_points, float voxel_filter_leaf_size,
+                          geometry_msgs::Vector3 translation,
+                          geometry_msgs::Vector3 rotation_euler_deg,
+                          float scale_factor, bool write_normals, bool write_colors);
+
+  /**
+   * Get the sampled point cloud with data according to write_normals and write_colors, converted to a PCLPointCloud2.
+   * @return sampled point cloud
+   */
+  std::shared_ptr<pcl::PCLPointCloud2> getPointCloud();
+
+  /**
+   * Save the point cloud to a pcd file.
+   * @param output_file
+   */
+  void savePointCloudToPCDFile(const std::string& output_file);
 
 
 private:
-
-  bool
-  convertMeshToSampledPointCloudCallback(mesh_to_sampled_point_cloud::ConvertMeshToSampledPointCloud::Request& request,
-                                         mesh_to_sampled_point_cloud::ConvertMeshToSampledPointCloud::Response& response);
-
 
   /**
    * Convert a translation, rotation and scale_factor into a vtkTransform.
@@ -36,11 +56,7 @@ private:
   static vtkSmartPointer<vtkTransform>
   convertTransform(geometry_msgs::Vector3 translation, geometry_msgs::Vector3 rotation_euler_deg, double scale_factor);
 
-
-  ros::NodeHandle nh_;
-  ros::NodeHandle pnh_;
-
-  ros::ServiceServer convert_mesh_to_sampled_point_cloud_service_server_;
+  PCLMeshSamplingExtract mesh_sampling_extract_;
 };
 } // end namespace mesh_to_sampled_point_cloud
 

@@ -117,6 +117,39 @@ std::string PCLMeshSamplingExtract::savePCDFile(const std::string& output_file_n
 }
 
 
+std::shared_ptr<pcl::PCLPointCloud2> PCLMeshSamplingExtract::getSampledPointCloud()
+{
+  std::shared_ptr<pcl::PCLPointCloud2> point_cloud_2 = std::make_shared<pcl::PCLPointCloud2>();
+
+  if (write_normals_ && write_colors_)
+  {
+    pcl::toPCLPointCloud2(*filtered_point_cloud_, *point_cloud_2);
+  }
+  else if (write_normals_)
+  {
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_xyzn(new pcl::PointCloud<pcl::PointNormal>);
+    // Strip uninitialized colors from cloud:
+    pcl::copyPointCloud(*filtered_point_cloud_, *cloud_xyzn);
+    pcl::toPCLPointCloud2(*cloud_xyzn, *point_cloud_2);
+  }
+  else if (write_colors_)
+  {
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_xyzrgb(new pcl::PointCloud<pcl::PointXYZRGB>);
+    // Strip uninitialized normals from cloud:
+    pcl::copyPointCloud(*filtered_point_cloud_, *cloud_xyzrgb);
+    pcl::toPCLPointCloud2(*cloud_xyzrgb, *point_cloud_2);
+  }
+  else // !write_normals_ && !write_colors_
+  {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz(new pcl::PointCloud<pcl::PointXYZ>);
+    // Strip uninitialized normals and colors from cloud:
+    pcl::copyPointCloud(*filtered_point_cloud_, *cloud_xyz);
+    pcl::toPCLPointCloud2(*cloud_xyz, *point_cloud_2);;
+  }
+
+  return point_cloud_2;
+}
+
 
 
 // ===== pcl_mesh_sampling methods ===== //

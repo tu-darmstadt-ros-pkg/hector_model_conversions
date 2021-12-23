@@ -103,6 +103,13 @@ public:
   std::string savePCDFile(const std::string& output_file_name);
 
 
+  /**
+   * Get the sampled point cloud with data according to write_normals_ and write_colors_, converted to a PCLPointCloud2.
+   * @return sampled point cloud
+   */
+  std::shared_ptr<pcl::PCLPointCloud2> getSampledPointCloud();
+
+
 private:
 
   // ===== pcl_mesh_sampling methods ===== //
