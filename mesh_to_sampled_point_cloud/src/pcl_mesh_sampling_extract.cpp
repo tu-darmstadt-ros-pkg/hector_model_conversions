@@ -151,6 +151,15 @@ std::shared_ptr<pcl::PCLPointCloud2> PCLMeshSamplingExtract::getSampledPointClou
 }
 
 
+std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> PCLMeshSamplingExtract::getSampledPointCloudXYZ()
+{
+  std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> cloud_xyz = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  // Strip normals and colors from cloud:
+  pcl::copyPointCloud(*filtered_point_cloud_, *cloud_xyz);
+  return cloud_xyz;
+}
+
+
 
 // ===== pcl_mesh_sampling methods ===== //
 

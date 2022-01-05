@@ -109,6 +109,12 @@ public:
    */
   std::shared_ptr<pcl::PCLPointCloud2> getSampledPointCloud();
 
+  /**
+   * Get the sampled point cloud as pcl point cloud with PointXYZ as point type.
+   * @return sampled point cloud
+   */
+  std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> getSampledPointCloudXYZ();
+
 
 private:
 

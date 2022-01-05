@@ -33,6 +33,11 @@ std::shared_ptr<pcl::PCLPointCloud2> MeshToSampledPointCloud::getPointCloud()
   return mesh_sampling_extract_.getSampledPointCloud();
 }
 
+std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> MeshToSampledPointCloud::getPointCloudXYZ()
+{
+  return mesh_sampling_extract_.getSampledPointCloudXYZ();
+}
+
 void MeshToSampledPointCloud::savePointCloudToPCDFile(const std::string& output_file)
 {
   // save file
