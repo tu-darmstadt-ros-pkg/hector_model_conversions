@@ -64,8 +64,9 @@ public:
    * When using the loadMap function it is normal, that after the message, that the TSDF was loaded first a message appears that it tries
    * to load a tsdf map into an esdf map as the file is parsed again from the top. But it continues and loads the EsdfMap correctly.
    * @param output_file_name File path
+   * @param with_tsdf If the file should be loaded using the EsdfServer's loadMap method, it is required that the tsdf is also in the file. But when loading differently, it is sometimes not required or not allowed to have multiple layers in one file.
    */
-  void saveEsdf(const std::string& output_file_name);
+  void saveEsdf(const std::string& output_file_name, bool with_tsdf = true);
 
 
 private:

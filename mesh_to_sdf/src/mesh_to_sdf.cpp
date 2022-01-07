@@ -6,8 +6,7 @@ namespace mesh_to_sdf
 {
 
 MeshToSdf::MeshToSdf(const std::string& input_file, geometry_msgs::Transform transform, float scale_factor,
-                     bool fill_inside,
-                     bool floodfill_unoccupied, float voxel_size, float truncation_distance)
+                     bool fill_inside, bool floodfill_unoccupied, float voxel_size, float truncation_distance)
 {
   pcl::PolygonMesh mesh;
   pcl::PointCloud<pcl::PointXYZ> point_cloud;
@@ -54,13 +53,16 @@ void MeshToSdf::saveTsdf(const std::string& output_file_name)
 }
 
 
-void MeshToSdf::saveEsdf(const std::string& output_file_name)
+void MeshToSdf::saveEsdf(const std::string& output_file_name, bool with_tsdf)
 {
-  // First save the tsdf layer to the file.
-  if (!tsdf_map_->getTsdfLayer().saveToFile(output_file_name, true))
+  if(with_tsdf)
   {
-    throw std::invalid_argument(
-      "Error while saving the tsdf part of the esdf file. Please see voxblox error for more information.");
+    // First save the tsdf layer to the file (required for voxblox::EsdfServer::loadMap method).
+    if (!tsdf_map_->getTsdfLayer().saveToFile(output_file_name, true))
+    {
+      throw std::invalid_argument(
+        "Error while saving the tsdf part of the esdf file. Please see voxblox error for more information.");
+    }
   }
 
   // Afterwards append the esdf layer.
@@ -69,7 +71,9 @@ void MeshToSdf::saveEsdf(const std::string& output_file_name)
     // compute ESDF from TSDF
     computeEsdf();
   }
-  if (!esdf_map_->getEsdfLayer().saveToFile(output_file_name, false))
+
+  // clear file if not with tsdf
+  if (!esdf_map_->getEsdfLayer().saveToFile(output_file_name, !with_tsdf))
   {
     throw std::invalid_argument(
       "Error while saving the esdf part of the esdf file. Please see voxblox error for more information.");
