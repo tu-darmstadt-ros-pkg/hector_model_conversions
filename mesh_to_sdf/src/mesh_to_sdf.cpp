@@ -138,17 +138,26 @@ void MeshToSdf::computeTsdf(voxblox::Transformation transform, float scale_facto
   for (const pcl::Vertices& polygon : mesh.polygons)
   {
     // Ensure that the polygon is a triangle (other meshes are not supported)
-    CHECK_EQ(polygon.vertices.size(), 3);
+    if(polygon.vertices.size() != 3)
+    {
+      throw std::runtime_error("Error when converting mesh to sdf: Mesh has non-triangular polygons, which is not supported!");
+    }
 
     // Indicate progress
     triangle_i++;
     // Only print progress for each promile of completion, to reduce IO wait
-    if (triangle_i % (num_triangles / 1000) == 0)
+    // !!! ONLY PRINT IF THERE ARE MORE THAN 1000 TRIANGLES!
+    // (otherwise num_triangles/1000 is 0 and it results in an Arithmetic exception)
+    if(num_triangles / 1000 != 0)
     {
-      printf("\rProgress: %3.1f%% - total nr of blocks %lu", triangle_i / static_cast<double>(num_triangles) * 100,
-             sdf_creator.getNumberOfAllocatedBlocks());
-      std::cout << std::flush;
+      if (triangle_i % (num_triangles / 1000) == 0)
+      {
+        printf("\rProgress: %3.1f%% - total nr of blocks %lu", triangle_i / static_cast<double>(num_triangles) * 100,
+               sdf_creator.getNumberOfAllocatedBlocks());
+        std::cout << std::flush;
+      }
     }
+
 
     // Extract the triangle's vertices from the vertex coordinate pointcloud
     const Point vertex_a = vertex_coordinates[polygon.vertices[0]].getVector3fMap();
