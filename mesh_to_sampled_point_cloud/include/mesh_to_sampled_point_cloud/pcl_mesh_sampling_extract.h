@@ -115,6 +115,8 @@ public:
    */
   std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> getSampledPointCloudXYZ();
 
+  std::shared_ptr<pcl::PointCloud<pcl::PointNormal>> getSampledPointCloudXYZN();
+
 
 private:
 
