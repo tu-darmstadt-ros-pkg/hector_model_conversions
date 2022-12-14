@@ -117,7 +117,7 @@ public:
 
   /**
    * Get the sampled point cloud as pcl point cloud with PointNormal as point type.
-   * @throws runtime_error if parameter write_normals == false
+   * @throws runtime_error if parameter write_normals_ == false
    * @return sampled point cloud
    */
   std::shared_ptr<pcl::PointCloud<pcl::PointNormal>> getSampledPointCloudXYZN();
