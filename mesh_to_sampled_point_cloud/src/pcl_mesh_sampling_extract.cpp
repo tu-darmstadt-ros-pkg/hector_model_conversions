@@ -160,6 +160,21 @@ std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> PCLMeshSamplingExtract::getSampl
 }
 
 
+std::shared_ptr<pcl::PointCloud<pcl::PointNormal>> PCLMeshSamplingExtract::getSampledPointCloudXYZN()
+{
+  if (!write_normals_)
+  {
+    throw std::runtime_error("In PCLMeshSamplingExtract::getSampledPointCloudXYZN(): Point normals are invalid if flag "
+                             "\"write_normals\" not set.");
+  }
+
+  std::shared_ptr<pcl::PointCloud<pcl::PointNormal>> cloud_xyzn = std::make_shared<pcl::PointCloud<pcl::PointNormal>>();
+  // Strip colors from cloud:
+  pcl::copyPointCloud(*filtered_point_cloud_, *cloud_xyzn);
+  return cloud_xyzn;
+}
+
+
 
 // ===== pcl_mesh_sampling methods ===== //
 
