@@ -164,7 +164,8 @@ std::shared_ptr<pcl::PointCloud<pcl::PointNormal>> PCLMeshSamplingExtract::getSa
 {
   if (!write_normals_)
   {
-    std::cout << "Parameter \"write_normals\" must be set for calling this function" << std::endl;
+    throw std::runtime_error("In PCLMeshSamplingExtract::getSampledPointCloudXYZN(): Point normals are invalid if flag "
+                             "\"write_normals\" not set.");
   }
 
   std::shared_ptr<pcl::PointCloud<pcl::PointNormal>> cloud_xyzn = std::make_shared<pcl::PointCloud<pcl::PointNormal>>();
